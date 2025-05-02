@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         PTool
 // @namespace    https://github.com/AboutCXJ
-// @version      2025-02-12
+// @version      2025-05-01
 // @description  PT站点自动批量下载种子
-// @author       AboutCXJ
+// @author       AboutCXJ/Yichaocp
 // @updateURL    https://raw.githubusercontent.com/yichaocp/PTool/refs/heads/main/PTool.js
 // @downloadURL  https://raw.githubusercontent.com/yichaocp/PTool/refs/heads/main/PTool.js
 // @include      https://*
