@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PTool
 // @namespace    https://github.com/AboutCXJ
-// @version      2025-05-05
+// @version      2025-05-10
 // @description  PT站点自动批量下载种子
 // @author       AboutCXJ/Yichaocp
 // @updateURL    https://raw.githubusercontent.com/yichaocp/PTool/main/PTool.js
@@ -18,7 +18,7 @@
   // 配置参数
   // prettier-ignore
   const ptoolConfig = {
-    totalPages:         10,         //要下载的种子页数
+    totalSeeds:         1000,       //要下载的种子数量
     maxSeedSize:        0,          //种子最大大小(MB)
     pageDelay:          10 * 1000,  //翻页延时(ms)
     singleSeedDelay:    3 * 1000,   //单种延时(ms)
@@ -26,13 +26,13 @@
     excludeDownloading: true,       //排除正在下载中的种子
     excludeSeeding:     true,       //排除正在做种中的种子
     excludeDeadSeed:    true,       //排除死种
+    favoriteMode:       false,      //收藏模式
     dryRun:             false,      //模拟运行
     seedGap:            128,        //累计下载多少个种子触发一次多种延时
   };
 
   // 状态统计
-  let currentPage = 1;
-  let downloadCount = 0;
+  let downCount = 0;
   let isRunning = false;
   let isStopped = false;
 
@@ -64,7 +64,7 @@
           bottom: 10px;
           left: 10px;
           width: 180px;
-          height: 400px;
+          height: 450px;
           z-index: 10000;
           padding: 10px;
           box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
@@ -76,8 +76,8 @@
           position: fixed;
           bottom: 10px;
           left: 200px;
-          width: 720px;
-          height: 400px;
+          width: 800px;
+          height: 450px;
           z-index: 10000;
           padding: 5px;
           background-color: rgba(0, 0, 0, 0.7);
@@ -155,7 +155,14 @@
           color: #888 !important;
           cursor: not-allowed !important;
         }
-        .ptool-lp-container {
+        .ptool-lp-table {
+          width: 100%;
+          text-align: center;
+          font-size: 12px;
+          border-collapse: collapse;
+          margin: 0 auto;
+        }
+        .ptool-lp-context {
           display: flex;
           flex-wrap: wrap;
           justify-content: flex-start;
@@ -171,24 +178,28 @@
     if (mteamSites.some((site) => currentURL.includes(site))) {
       selector = {
         list: "tbody tr",
-        title: "td:nth-child(3)",
+        title: "td:nth-child(2) span[aria-describedby]",
         downloader: "td button",
-        progressBar: "div[aria-valuenow='100']",
-        size: "td div[class='mx-[-5px]']",
-        seeders: "td span[aria-label*='arrow-up'] + span",
-        leechers: "td span[aria-label*='arrow-down'] + span",
-        nextPage: "li[title='下一頁'] button",
+        liker: "td button:nth-child(2)",
+        isFavorited: 'td button:nth-child(2) span[style*="color: gold"]',
+        progressBar: 'div[role="progressbar"]',
+        size: 'td div[class="mx-[-5px]"]',
+        seeders: 'td span[aria-label*="arrow-up"] + span',
+        leechers: 'td span[aria-label*="arrow-down"] + span',
+        nextPage: 'li[title="下一頁"] button',
       };
     } else if (nexusPHPSites.some((site) => currentURL.includes(site))) {
       selector = {
-        list: "table[class='torrents'] > tbody > tr",
-        title: "table[class='torrentname'] tr td",
-        downloader: "table[class='torrentname'] tr td[width] a",
-        progressBar: "div[title*=seeding]",
+        list: 'table[class="torrents"] > tbody > tr',
+        title: 'table[class="torrentname"] tbody tr td b',
+        downloader: 'table[class="torrentname"] a[href^="download.php"]',
+        liker: 'table[class="torrentname"] a[id^="bookmark"]',
+        isFavorited: 'table[class="torrentname"] a[id^="bookmark"] img[alt="Bookmarked"]',
+        progressBar: 'div[title*="seeding"]',
         size: "td:nth-child(5)",
         seeders: "td:nth-child(6)",
         leechers: "td:nth-child(7)",
-        nextPage: "p[class='nexus-pagination'] a",
+        nextPage: 'p[class="nexus-pagination"] a',
       };
     }
   }
@@ -227,7 +238,9 @@
 
   // 加载开始面板
   function loadBeginPanel() {
-    if (beginPanel) return;
+    if (beginPanel) {
+      return;
+    }
 
     beginPanel = document.createElement("div");
     beginPanel.className = "ptool-begin-panel";
@@ -239,12 +252,12 @@
     title.className = "ptool-bp-title";
     beginPanel.appendChild(title);
 
-    // 下载几页
-    const totalPagesInput = document.createElement("input");
-    totalPagesInput.type = "number";
-    totalPagesInput.max = 100;
-    totalPagesInput.value = ptoolConfig.totalPages;
-    beginPanel.appendChild(createInputModule(totalPagesInput, `下载几页：`));
+    // 种子数量
+    const totalSeedsInput = document.createElement("input");
+    totalSeedsInput.type = "number";
+    totalSeedsInput.max = 10000;
+    totalSeedsInput.value = ptoolConfig.totalSeeds;
+    beginPanel.appendChild(createInputModule(totalSeedsInput, `种子数量：(个)`));
 
     // 种子大小
     const maxSeedSizeInput = document.createElement("input");
@@ -291,6 +304,12 @@
     excludeDeadSeedCheck.checked = ptoolConfig.excludeDeadSeed;
     beginPanel.appendChild(createInputModule(excludeDeadSeedCheck, `排除死种：`));
 
+    // 收藏模式
+    const favoriteModeCheck = document.createElement("input");
+    favoriteModeCheck.type = "checkbox";
+    favoriteModeCheck.checked = ptoolConfig.favoriteMode;
+    beginPanel.appendChild(createInputModule(favoriteModeCheck, `收藏模式：`));
+
     // 模拟运行
     const dryRunCheck = document.createElement("input");
     dryRunCheck.type = "checkbox";
@@ -311,11 +330,13 @@
     endButton.disabled = true;
     beginPanel.appendChild(endButton);
 
-    // 开始按钮点击事件前先判断 isRunning
+    // 开始按钮点击事件
     beginButton.addEventListener("click", () => {
-      if (isRunning) return;
-      loadLogPanel();
-      ptoolConfig.totalPages = totalPagesInput.value || ptoolConfig.totalPages;
+      if (isRunning) {
+        return;
+      }
+
+      ptoolConfig.totalSeeds = totalSeedsInput.value || ptoolConfig.totalSeeds;
       ptoolConfig.maxSeedSize = maxSeedSizeInput.value || ptoolConfig.maxSeedSize;
       ptoolConfig.pageDelay = pageDelayInput.value * 1000;
       ptoolConfig.singleSeedDelay = singleSeedDelayInput.value * 1000;
@@ -323,22 +344,24 @@
       ptoolConfig.excludeDownloading = excludeDownloadingCheck.checked;
       ptoolConfig.excludeSeeding = excludeSeedingCheck.checked;
       ptoolConfig.excludeDeadSeed = excludeDeadSeedCheck.checked;
+      ptoolConfig.favoriteMode = favoriteModeCheck.checked;
       ptoolConfig.dryRun = dryRunCheck.checked;
 
       if (
-        ptoolConfig.singleSeedDelay < 0 ||
-        ptoolConfig.multipleSeedDelay < 0 ||
+        ptoolConfig.totalSeeds < 0 ||
+        ptoolConfig.maxSeedSize < 0 ||
         ptoolConfig.pageDelay < 0 ||
-        ptoolConfig.totalPages < 1 ||
-        ptoolConfig.totalPages > 100
+        ptoolConfig.singleSeedDelay < 0 ||
+        ptoolConfig.multipleSeedDelay < 0
       ) {
-        panelMessage("请输入正确的参数！M-Team限制：100种/小时，1000种/天. ");
+        alert("请输入正确的参数！M-Team限制：100种/小时，1000种/天. ");
         return;
       }
 
       beginButton.disabled = true;
       endButton.disabled = false;
 
+      loadLogPanel();
       clearLogPanel();
       begin();
     });
@@ -360,13 +383,11 @@
       });
       panelMessage("任务已手动停止！");
 
-      clearLogPanel();
-      removeLogPanel();
-
       beginButton.disabled = false;
       endButton.disabled = true;
-      currentPage = 1;
-      downloadCount = 0;
+
+      clearLogPanel();
+      removeLogPanel();
     });
 
     // 内部接口：创建输入模块
@@ -396,7 +417,9 @@
 
   // 内部接口：加载日志面板
   function loadLogPanel() {
-    if (logPanel) return;
+    if (logPanel) {
+      return;
+    }
 
     logPanel = document.createElement("div");
     logPanel.className = "ptool-log-panel";
@@ -411,8 +434,8 @@
   // 内部接口：打印日志
   function panelMessage(message) {
     const timestamp = new Date().toLocaleString();
-    logPanel.innerHTML += `<hr/><div class="ptool-lp-container"><div style="width:100px;">[${timestamp}]</div>${message}</div>`;
-    if (logPanel.scrollTop + logPanel.clientHeight >= logPanel.scrollHeight - 50) {
+    logPanel.innerHTML += `<hr/><div class="ptool-lp-context"><div style="width:100px;">[${timestamp}]</div>${message}</div>`;
+    if (Math.abs(logPanel.scrollTop + logPanel.clientHeight - logPanel.scrollHeight) <= 50) {
       logPanel.scrollTop = logPanel.scrollHeight;
     }
     console.log(`[${timestamp}]  ${message}`);
@@ -428,7 +451,7 @@
 
   // 内部接口：格式化时间
   function formatTime(milliseconds) {
-    let totalSeconds = Math.fround(milliseconds / 1000).toFixed(2); // 转换为秒
+    const totalSeconds = Math.fround(milliseconds / 1000).toFixed(2); // 转换为秒
     if (totalSeconds < 60) {
       return `${totalSeconds} 秒`;
     } else if (totalSeconds < 3600) {
@@ -449,49 +472,34 @@
   function preprocessingDatas() {
     const list = document.querySelectorAll(selector.list);
 
-    let datas = Array();
+    const datas = [];
     for (let index = 0; index < list.length; index++) {
       const element = list[index];
-      var data = new Object();
+      const data = {};
 
-      let title = element.querySelector(selector.title);
-      if (title) {
-        data.title = title.innerText.replace(/[\r\n]+/g, "").trim();
-      } else {
+      const title = element.querySelector(selector.title);
+      if (!title) {
         continue;
       }
+      data.title = title.textContent.replace(/[\r\n]+/g, "").trim();
 
       data.downloader = element.querySelector(selector.downloader);
+      data.liker = element.querySelector(selector.liker);
+      data.isFavorited = !!element.querySelector(selector.isFavorited);
 
-      let progress = element.querySelector(selector.progressBar);
-      if (progress) {
-        let progressBg = progress.querySelector(".ant-progress-bg.ant-progress-bg-outer");
-        if (progressBg && progressBg.style.background === "rgb(158, 158, 158)") {
-          data.downloading = true;
-          data.seeding = false;
-        } else {
-          data.downloading = false;
-          data.seeding = true;
-        }
+      const progressBar = element.querySelector(selector.progressBar);
+      if (progressBar) {
+        data.downloading = progressBar.getAttribute("aria-valuenow") !== "100";
+        data.seeding = progressBar.getAttribute("aria-valuenow") === "100";
       } else {
         data.downloading = false;
         data.seeding = false;
       }
 
-      let size = element.querySelector(selector.size);
-      if (size) {
-        data.size = size.innerText.replace(/[\r\n]+/g, "").trim();
-      }
-
-      let seeders = element.querySelector(selector.seeders);
-      if (seeders) {
-        data.seeders = seeders.innerText;
-      }
-
-      let leechers = element.querySelector(selector.leechers);
-      if (leechers) {
-        data.leechers = leechers.innerText;
-      }
+      // prettier-ignore
+      data.size = element.querySelector(selector.size)?.innerText.replace(/[\r\n]+/g, "").trim() || "";
+      data.seeders = element.querySelector(selector.seeders)?.innerText || "";
+      data.leechers = element.querySelector(selector.leechers)?.innerText || "";
 
       datas.push(data);
     }
@@ -504,23 +512,24 @@
     const datas = preprocessingDatas();
 
     for (let i = 0; i < datas.length; i++) {
-      if (isStopped) break;
+      if (isStopped) {
+        return false;
+      }
 
       const data = datas[i];
-
       let shoudleSkip = false;
       let skipReason = "";
 
       // 排除种子大小
       if (ptoolConfig.maxSeedSize > 0) {
         if (data.size && data.size.includes("GB")) {
-          let size = parseFloat(data.size.replace("GB", ""));
+          const size = parseFloat(data.size.replace("GB", ""));
           if (size * 1024 > ptoolConfig.maxSeedSize) {
             shoudleSkip = true;
             skipReason = `种子超过${ptoolConfig.maxSeedSize}MB`;
           }
         } else if (data.size && data.size.includes("MB")) {
-          let size = parseFloat(data.size.replace("MB", ""));
+          const size = parseFloat(data.size.replace("MB", ""));
           if (size > ptoolConfig.maxSeedSize) {
             shoudleSkip = true;
             skipReason = `种子超过${ptoolConfig.maxSeedSize}MB`;
@@ -550,8 +559,8 @@
       }
 
       panelMessage(
-        `<div style="width:40px;">页：${currentPage}</div>` +
-          `<div style="width:40px;">种：${i + 1}</div>` +
+        // prettier-ignore
+        `<div style="width:120px;">序号：${i + 1} / ${downCount + 1} / ${ptoolConfig.totalSeeds}</div>` +
           `<div style="width:80px;">大小：${data.size}</div>` +
           `<div style="width:60px;">上传：${data.seeders}</div>` +
           `<div style="width:60px;">下载：${data.leechers}</div>` +
@@ -561,86 +570,144 @@
       );
 
       if (shoudleSkip) {
+        if (ptoolConfig.favoriteMode && data.isFavorited) {
+          // 收藏模式：跳过的种子取消收藏
+          if (!ptoolConfig.dryRun) {
+            data.liker.click();
+          }
+          panelMessage(`取消收藏：${data.title}`);
+          // 单种延时
+          await new Promise((resolve) => setTimeout(resolve, ptoolConfig.singleSeedDelay));
+        }
+
         continue;
       }
 
-      if (!ptoolConfig.dryRun) {
-        data.downloader.click();
+      if (ptoolConfig.favoriteMode) {
+        // 收藏模式：已收藏的种子不再重复点击
+        if (!data.isFavorited) {
+          if (!ptoolConfig.dryRun) {
+            data.liker.click();
+          }
+          panelMessage(`收藏：${data.title}`);
+        } else {
+          panelMessage(`已收藏：${data.title}`);
+        }
+      } else {
+        if (!ptoolConfig.dryRun) {
+          data.downloader.click();
+        }
+        panelMessage(`下载：${data.title}`);
       }
 
-      downloadCount++;
+      downCount++;
+      if (downCount >= ptoolConfig.totalSeeds) {
+        return false;
+      }
 
       // 多种延时
-      if (downloadCount % ptoolConfig.seedGap === 0) {
-        panelMessage(
-          `已下载${downloadCount}个种子，等待${formatTime(ptoolConfig.multipleSeedDelay)}`
-        );
+      if (downCount % ptoolConfig.seedGap === 0) {
+        panelMessage(`已下载${downCount}个种子，等待${formatTime(ptoolConfig.multipleSeedDelay)}`);
         await new Promise((resolve) => setTimeout(resolve, ptoolConfig.multipleSeedDelay));
       }
 
+      // 单种延时
       await new Promise((resolve) => setTimeout(resolve, ptoolConfig.singleSeedDelay));
-    }
-  }
-
-  // 翻页
-  async function goToNextPage() {
-    if (isStopped) return false;
-
-    const nextPageButton = document.querySelector(selector.nextPage);
-
-    // 翻页延时
-    if (nextPageButton) {
-      nextPageButton.click();
-      panelMessage(`翻到第${currentPage + 1}页。等待${formatTime(ptoolConfig.pageDelay)}。`);
-      await new Promise((resolve) => setTimeout(resolve, ptoolConfig.pageDelay));
-    } else {
-      panelMessage("未找到翻页按钮！");
-      return false;
     }
 
     return true;
   }
 
+  // 翻页
+  async function goToNextPage() {
+    if (isStopped) {
+      return false;
+    }
+
+    const nextPageButton = document.querySelector(selector.nextPage);
+
+    if (
+      nextPageButton &&
+      !nextPageButton.disabled &&
+      !nextPageButton.classList.contains("disabled")
+    ) {
+      nextPageButton.click();
+      // 翻页延时
+      panelMessage(`翻页刷新中... 等待${formatTime(ptoolConfig.pageDelay)}。`);
+      await new Promise((resolve) => setTimeout(resolve, ptoolConfig.pageDelay));
+      return true;
+    } else {
+      panelMessage("未找到翻页按钮！");
+      return false;
+    }
+  }
+
   // begin 函数增加运行中判断
   async function begin() {
-    if (isRunning) return;
+    if (isRunning) {
+      return;
+    }
+
     isRunning = true;
     isStopped = false;
+    downCount = 0;
+
     try {
-      panelMessage(
-        `<div style="width: 20%;">下载页数：${ptoolConfig.totalPages}</div>` +
-          `<div style="width: 20%;">种子大小：${ptoolConfig.maxSeedSize}MB</div>` +
-          `<div style="width: 20%;">翻页延时：${formatTime(ptoolConfig.pageDelay)}</div>` +
-          `<div style="width: 20%;">单种延时：${formatTime(ptoolConfig.singleSeedDelay)}</div>` +
-          `<div style="width: 20%;">多种延时：${formatTime(ptoolConfig.multipleSeedDelay)}</div>` +
-          `<div style="width: 20%;">排除正在下载：${ptoolConfig.excludeDownloading}</div>` +
-          `<div style="width: 20%;">排除正在做种：${ptoolConfig.excludeSeeding}</div>` +
-          `<div style="width: 20%;">排除死种：${ptoolConfig.excludeDeadSeed}</div>` +
-          `<div style="width: 20%;">模拟运行：${ptoolConfig.dryRun}</div>`
-      );
+      panelMessage(`
+        <table class="ptool-lp-table">
+          <tr>
+            <th>种子数量</th>
+            <th>种子大小</th>
+            <th>翻页延时</th>
+            <th>单种延时</th>
+            <th>多种延时</th>
+            <th>排除正在下载</th>
+            <th>排除正在做种</th>
+            <th>排除死种</th>
+            <th>收藏模式</th>
+            <th>模拟运行</th>
+          </tr>
+          <tr>
+            <td>${ptoolConfig.totalSeeds}</td>
+            <td>${ptoolConfig.maxSeedSize}MB</td>
+            <td>${formatTime(ptoolConfig.pageDelay)}</td>
+            <td>${formatTime(ptoolConfig.singleSeedDelay)}</td>
+            <td>${formatTime(ptoolConfig.multipleSeedDelay)}</td>
+            <td>${ptoolConfig.excludeDownloading}</td>
+            <td>${ptoolConfig.excludeSeeding}</td>
+            <td>${ptoolConfig.excludeDeadSeed}</td>
+            <td>${ptoolConfig.favoriteMode}</td>
+            <td>${ptoolConfig.dryRun}</td>
+          </tr>
+        </table>
+      `);
 
-      while (currentPage <= ptoolConfig.totalPages && !isStopped) {
-        panelMessage(`开始下载第${currentPage}页，共${ptoolConfig.totalPages}页。`);
-        await downloadTorrents();
-
-        if (currentPage < ptoolConfig.totalPages) {
-          const hasNextPage = await goToNextPage();
-          if (!hasNextPage) break;
+      while (1) {
+        const needMore = await downloadTorrents();
+        if (!needMore) {
+          break;
         }
-        currentPage++;
+
+        const hasMore = await goToNextPage();
+        if (!hasMore) {
+          break;
+        }
       }
-      if (!isStopped) {
-        let finishTip = `全部任务已完成，共下载${downloadCount}个种子！`;
-        panelMessage(finishTip);
-        GM_notification(finishTip);
-      }
+
+      //任务结束，发送通知
+      const finishTip = isStopped
+        ? `任务已手动停止！共下载${downCount}个种子！`
+        : `全部任务已完成，共下载${downCount}个种子！`;
+      panelMessage(finishTip);
+      GM_notification(finishTip);
     } catch (e) {
       GM_notification(`发生错误：${e.message}`);
     } finally {
       isRunning = false;
       isStopped = true;
-      currentPage = 1;
-      downloadCount = 0;
+      downCount = 0;
+      beginPanel.querySelector(".ptool-btn-begin").disabled = false;
+      beginPanel.querySelector(".ptool-btn-end").disabled = true;
     }
   }
 
