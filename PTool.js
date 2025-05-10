@@ -4,8 +4,8 @@
 // @version      2025-05-10
 // @description  PT站点自动批量下载种子
 // @author       AboutCXJ/Yichaocp
-// @updateURL    https://raw.githubusercontent.com/yichaocp/PTool/main/PTool.js
-// @downloadURL  https://raw.githubusercontent.com/yichaocp/PTool/main/PTool.js
+// @updateURL    https://raw.githubusercontent.com/AboutCXJ/PTool/main/PTool.js
+// @downloadURL  https://raw.githubusercontent.com/AboutCXJ/PTool/main/PTool.js
 // @include      https://*
 // @include      http://*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=tampermonkey.net
