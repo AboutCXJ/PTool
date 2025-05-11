@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PTool
 // @namespace    https://github.com/AboutCXJ
-// @version      2025-05-10
+// @version      2025-05-11
 // @description  PT站点自动批量下载种子
 // @author       AboutCXJ/Yichaocp
 // @updateURL    https://raw.githubusercontent.com/AboutCXJ/PTool/main/PTool.js
@@ -178,7 +178,7 @@
     if (mteamSites.some((site) => currentURL.includes(site))) {
       selector = {
         list: "tbody tr",
-        title: "td:nth-child(2) span[aria-describedby]",
+        title: "td strong",
         downloader: "td button",
         liker: "td button:nth-child(2)",
         isFavorited: 'td button:nth-child(2) span[style*="color: gold"]',
