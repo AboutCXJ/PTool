@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PTool
 // @namespace    https://github.com/AboutCXJ
-// @version      2025-05-11_2
+// @version      2025-05-11_3
 // @description  PT站点自动批量下载种子
 // @author       AboutCXJ/Yichaocp
 // @updateURL    https://raw.githubusercontent.com/AboutCXJ/PTool/main/PTool.js
@@ -589,7 +589,7 @@
         `<div style="width:60px;">下载：${data.leechers}</div>` +
         `<div style="width:60px;">做种：${data.seeding}</div>` +
         `<div style="width:60px;">跳过：${shoudleSkip}</div>` +
-        `<div style="width:120px;">原因：${skipReason.join("/")}</div>`
+        `<div style="width:120px;">${skipReason.join("/")}</div>`
       );
 
       if (shoudleSkip) {
