@@ -22,8 +22,8 @@
     minSeedSize: 10,          //种子最小大小(MB)
     maxSeedSize: 100,          //种子最大大小(MB)
     pageDelay: 10 * 1000,  //翻页延时(ms)
-    singleSeedDelay: 3 * 1000,   //单种延时(ms)
-    multipleSeedDelay: 60 * 1000,  //多种延时(ms)
+    singleSeedDelay: 10 * 1000,   //单种延时(ms)
+    multipleSeedDelay: 40 * 60 * 1000,  //多种延时(ms)
     excludeDownloading: true,       //排除正在下载中的种子
     excludeSeeding: true,       //排除正在做种中的种子
     excludeDeadSeed: true,       //排除死种
@@ -34,6 +34,7 @@
 
   // 状态统计
   let downCount = 0;
+  let pageCount = 0;
   let isRunning = false;
   let isStopped = false;
 
@@ -444,7 +445,7 @@
   // 内部接口：打印日志
   function panelMessage(message) {
     const timestamp = new Date().toLocaleString();
-    logPanel.innerHTML += `<hr/><div class="ptool-lp-context"><div style="width:100px;">[${timestamp}]</div>${message}</div>`;
+    logPanel.innerHTML += `<hr/><div class="ptool-lp-context"><div style="width:120px;">[${timestamp}]</div>${message}</div>`;
     if (Math.abs(logPanel.scrollTop + logPanel.clientHeight - logPanel.scrollHeight) <= 50) {
       logPanel.scrollTop = logPanel.scrollHeight;
     }
@@ -583,13 +584,14 @@
 
       panelMessage(
         // prettier-ignore
-        `<div style="width:120px;">序号：${i + 1} / ${downCount + 1} / ${ptoolConfig.totalSeeds}</div>` +
-        `<div style="width:80px;">大小：${data.size}</div>` +
-        `<div style="width:60px;">上传：${data.seeders}</div>` +
-        `<div style="width:60px;">下载：${data.leechers}</div>` +
-        `<div style="width:60px;">做种：${data.seeding}</div>` +
-        `<div style="width:60px;">跳过：${shoudleSkip}</div>` +
-        `<div style="width:120px;">${skipReason.join("/")}</div>`
+        `<div style="width:30px;"> P.${pageCount + 1}</div>` +
+        `<div style="width:30px;">No.${i + 1}</div>` +
+        `<div style="width:60px;">CNT.${downCount + 1}</div>` +
+        `<div style="width:60px;">${data.size}</div>` +
+        `<div style="width:40px;">↑${data.seeders}</div>` +
+        `<div style="width:40px;">↓${data.leechers}</div>` +
+        `<div style="width:20px;">${shoudleSkip === true ? "☒" : "☑"}</div>` +
+        `<div style="width:150px;">${skipReason.join("/")}</div>`
       );
 
       if (shoudleSkip) {
@@ -620,7 +622,7 @@
         if (!ptoolConfig.dryRun) {
           data.downloader.click();
         }
-        panelMessage(`下载：${data.title}`);
+        panelMessage(`↓  ${data.title}`);
       }
 
       downCount++;
@@ -657,6 +659,7 @@
       nextPageButton.click();
       // 翻页延时
       panelMessage(`翻页刷新中... 等待${formatTime(ptoolConfig.pageDelay)}。`);
+      pageCount++;
       await new Promise((resolve) => setTimeout(resolve, ptoolConfig.pageDelay));
       return true;
     } else {
@@ -674,6 +677,7 @@
     isRunning = true;
     isStopped = false;
     downCount = 0;
+    pageCount = 0;
 
     try {
       panelMessage(`
@@ -704,6 +708,7 @@
             <td>${ptoolConfig.favoriteMode}</td>
             <td>${ptoolConfig.dryRun}</td>
           </tr>
+
         </table>
       `);
 
