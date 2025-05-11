@@ -8,6 +8,10 @@ PT种子文件自动下载脚本，适用于M-Team。
 
 该脚本通过识别网页元素关键字，提取种子信息和下载链接，根据预设参数，定时模拟点击下载按钮，实现半自动化下载种子文件。
 
+<img src="/img/beginPanel.png" width="15%"><img src="/img/logPanel.png" width="70%">
+
+
+
 ## 使用
 * 使用Chrome/Edge等浏览器，安装[tampermonkey](https://www.tampermonkey.net/)扩展插件。
 * 打开[该链接](https://raw.githubusercontent.com/AboutCXJ/PTool/main/PTool.js),复制脚本的所有内容。
