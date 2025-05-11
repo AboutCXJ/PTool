@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PTool
 // @namespace    https://github.com/AboutCXJ
-// @version      2025-05-11
+// @version      2025-05-11_2
 // @description  PT站点自动批量下载种子
 // @author       AboutCXJ/Yichaocp
 // @updateURL    https://raw.githubusercontent.com/AboutCXJ/PTool/main/PTool.js
@@ -18,17 +18,18 @@
   // 配置参数
   // prettier-ignore
   const ptoolConfig = {
-    totalSeeds:         1000,       //要下载的种子数量
-    maxSeedSize:        0,          //种子最大大小(MB)
-    pageDelay:          10 * 1000,  //翻页延时(ms)
-    singleSeedDelay:    3 * 1000,   //单种延时(ms)
-    multipleSeedDelay:  60 * 1000,  //多种延时(ms)
+    totalSeeds: 1000,       //要下载的种子数量
+    minSeedSize: 10,          //种子最小大小(MB)
+    maxSeedSize: 100,          //种子最大大小(MB)
+    pageDelay: 10 * 1000,  //翻页延时(ms)
+    singleSeedDelay: 3 * 1000,   //单种延时(ms)
+    multipleSeedDelay: 60 * 1000,  //多种延时(ms)
     excludeDownloading: true,       //排除正在下载中的种子
-    excludeSeeding:     true,       //排除正在做种中的种子
-    excludeDeadSeed:    true,       //排除死种
-    favoriteMode:       false,      //收藏模式
-    dryRun:             false,      //模拟运行
-    seedGap:            128,        //累计下载多少个种子触发一次多种延时
+    excludeSeeding: true,       //排除正在做种中的种子
+    excludeDeadSeed: true,       //排除死种
+    favoriteMode: false,      //收藏模式
+    dryRun: false,      //模拟运行
+    seedGap: 128,        //累计下载多少个种子触发一次多种延时
   };
 
   // 状态统计
@@ -64,7 +65,6 @@
           bottom: 10px;
           left: 10px;
           width: 180px;
-          height: 450px;
           z-index: 10000;
           padding: 10px;
           box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
@@ -259,12 +259,20 @@
     totalSeedsInput.value = ptoolConfig.totalSeeds;
     beginPanel.appendChild(createInputModule(totalSeedsInput, `种子数量：(个)`));
 
-    // 种子大小
+
+    // 最小种子
+    const minSeedSizeInput = document.createElement("input");
+    minSeedSizeInput.type = "number";
+    minSeedSizeInput.max = 1024 * 1024;
+    minSeedSizeInput.value = ptoolConfig.minSeedSize;
+    beginPanel.appendChild(createInputModule(minSeedSizeInput, `最小种子：(MB)`));
+
+    // 最大大小
     const maxSeedSizeInput = document.createElement("input");
     maxSeedSizeInput.type = "number";
     maxSeedSizeInput.max = 1024 * 1024;
     maxSeedSizeInput.value = ptoolConfig.maxSeedSize;
-    beginPanel.appendChild(createInputModule(maxSeedSizeInput, `种子大小：(MB)`));
+    beginPanel.appendChild(createInputModule(maxSeedSizeInput, `最大种子：(MB)`));
 
     // 翻页延时
     const pageDelayInput = document.createElement("input");
@@ -337,6 +345,7 @@
       }
 
       ptoolConfig.totalSeeds = totalSeedsInput.value || ptoolConfig.totalSeeds;
+      ptoolConfig.minSeedSize = minSeedSizeInput.value || ptoolConfig.minSeedSize;
       ptoolConfig.maxSeedSize = maxSeedSizeInput.value || ptoolConfig.maxSeedSize;
       ptoolConfig.pageDelay = pageDelayInput.value * 1000;
       ptoolConfig.singleSeedDelay = singleSeedDelayInput.value * 1000;
@@ -349,6 +358,7 @@
 
       if (
         ptoolConfig.totalSeeds < 0 ||
+        ptoolConfig.minSeedSize < 0 ||
         ptoolConfig.maxSeedSize < 0 ||
         ptoolConfig.pageDelay < 0 ||
         ptoolConfig.singleSeedDelay < 0 ||
@@ -462,9 +472,28 @@
       const hours = Math.floor(totalSeconds / 3600);
       const minutes = Math.floor((totalSeconds % 3600) / 60);
       const seconds = totalSeconds % 60;
-      return `${hours} 小时${minutes > 0 ? ` ${minutes} 分钟` : ""}${
-        seconds > 0 ? ` ${seconds} 秒` : ""
-      }`;
+      return `${hours} 小时${minutes > 0 ? ` ${minutes} 分钟` : ""}${seconds > 0 ? ` ${seconds} 秒` : ""
+        }`;
+    }
+  }
+
+
+  //种子大小转换为MB
+  function torrentSizeConverToMB(size) {
+    if (size && size.includes("GB")) {
+      const sizeNumber = parseFloat(size.replace("GB", ""));
+      return sizeNumber * 1024;
+    } else if (size && size.includes("MB")) {
+      const sizeNumber = parseFloat(size.replace("MB", ""));
+      return sizeNumber;
+    } else if (size && size.includes("KB")) {
+      const sizeNumber = parseFloat(size.replace("KB", ""));
+      return sizeNumber / 1024;
+    } else if (size && size.includes("B")) {
+      const sizeNumber = parseFloat(size.replace("B", ""));
+      return sizeNumber / 1024 / 1024;
+    } else {
+      return 0
     }
   }
 
@@ -518,55 +547,49 @@
 
       const data = datas[i];
       let shoudleSkip = false;
-      let skipReason = "";
+      let skipReason = [];
 
-      // 排除种子大小
-      if (ptoolConfig.maxSeedSize > 0) {
-        if (data.size && data.size.includes("GB")) {
-          const size = parseFloat(data.size.replace("GB", ""));
-          if (size * 1024 > ptoolConfig.maxSeedSize) {
-            shoudleSkip = true;
-            skipReason = `种子超过${ptoolConfig.maxSeedSize}MB`;
-          }
-        } else if (data.size && data.size.includes("MB")) {
-          const size = parseFloat(data.size.replace("MB", ""));
-          if (size > ptoolConfig.maxSeedSize) {
-            shoudleSkip = true;
-            skipReason = `种子超过${ptoolConfig.maxSeedSize}MB`;
-          }
-        } else {
-          shoudleSkip = true;
-          skipReason = `种子大小未知`;
-        }
+
+      const size = torrentSizeConverToMB(data.size);
+      // 排除最小种子
+      if (ptoolConfig.minSeedSize > 0 && size < ptoolConfig.minSeedSize) {
+        shoudleSkip = true;
+        skipReason.push(`种子小于${ptoolConfig.minSeedSize}MB`);
+      }
+
+      // 排除最大种子
+      if (ptoolConfig.maxSeedSize > 0 && size > ptoolConfig.maxSeedSize) {
+        shoudleSkip = true;
+        skipReason.push(`种子大于${ptoolConfig.maxSeedSize}MB`);
       }
 
       // 排除正在下载
       if (data.downloading && ptoolConfig.excludeDownloading) {
         shoudleSkip = true;
-        skipReason = "正在下载";
+        skipReason.push("正在下载");
       }
 
       // 排除正在做种
       if (data.seeding && ptoolConfig.excludeSeeding) {
         shoudleSkip = true;
-        skipReason = "正在做种";
+        skipReason.push("正在做种");
       }
 
       // 排除死种
       if (data.seeders === "0" && ptoolConfig.excludeDeadSeed) {
         shoudleSkip = true;
-        skipReason = "死种";
+        skipReason.push("死种");
       }
 
       panelMessage(
         // prettier-ignore
         `<div style="width:120px;">序号：${i + 1} / ${downCount + 1} / ${ptoolConfig.totalSeeds}</div>` +
-          `<div style="width:80px;">大小：${data.size}</div>` +
-          `<div style="width:60px;">上传：${data.seeders}</div>` +
-          `<div style="width:60px;">下载：${data.leechers}</div>` +
-          `<div style="width:60px;">做种：${data.seeding}</div>` +
-          `<div style="width:60px;">跳过：${shoudleSkip}</div>` +
-          `<div style="width:120px;">原因：${skipReason}</div>`
+        `<div style="width:80px;">大小：${data.size}</div>` +
+        `<div style="width:60px;">上传：${data.seeders}</div>` +
+        `<div style="width:60px;">下载：${data.leechers}</div>` +
+        `<div style="width:60px;">做种：${data.seeding}</div>` +
+        `<div style="width:60px;">跳过：${shoudleSkip}</div>` +
+        `<div style="width:120px;">原因：${skipReason.join("/")}</div>`
       );
 
       if (shoudleSkip) {
@@ -657,7 +680,8 @@
         <table class="ptool-lp-table">
           <tr>
             <th>种子数量</th>
-            <th>种子大小</th>
+            <th>最小种子(MB)</th>
+            <th>最大种子(MB)</th>
             <th>翻页延时</th>
             <th>单种延时</th>
             <th>多种延时</th>
@@ -669,7 +693,8 @@
           </tr>
           <tr>
             <td>${ptoolConfig.totalSeeds}</td>
-            <td>${ptoolConfig.maxSeedSize}MB</td>
+            <td>${ptoolConfig.minSeedSize == 0 ? "不限制" : ptoolConfig.minSeedSize}</td>
+            <td>${ptoolConfig.maxSeedSize == 0 ? "不限制" : ptoolConfig.maxSeedSize}</td>
             <td>${formatTime(ptoolConfig.pageDelay)}</td>
             <td>${formatTime(ptoolConfig.singleSeedDelay)}</td>
             <td>${formatTime(ptoolConfig.multipleSeedDelay)}</td>
