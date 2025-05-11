@@ -10,7 +10,7 @@ PT种子文件自动下载脚本，适用于M-Team。
 
 ## 使用
 * 使用Chrome/Edge等浏览器，安装[tampermonkey](https://www.tampermonkey.net/)扩展插件。
-* 打开[该链接](https://raw.githubusercontent.com/yichaocp/PTool/main/PTool.js),复制脚本的所有内容。
+* 打开[该链接](https://raw.githubusercontent.com/AboutCXJ/PTool/main/PTool.js),复制脚本的所有内容。
 * 在tampermonkey扩展中点击添加新脚本，粘贴内容，保存，并启用该脚本。
 * 打开并登录站点，进入要下载的种子列表页面，将弹出Ptool种子下载助手控制面板。
 * 设置配置参数，点击`开始`按钮，即可开始下载，等待下载任务完成，将自动停止。
