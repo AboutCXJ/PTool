@@ -179,14 +179,14 @@
     if (mteamSites.some((site) => currentURL.includes(site))) {
       selector = {
         list: "tbody tr",
-        title: "td strong",
-        downloader: "td button",
-        liker: "td button:nth-child(2)",
-        isFavorited: 'td button:nth-child(2) span[style*="color: gold"]',
+        title: "td:nth-child(1) strong",
+        downloader: "td:nth-child(7) button:nth-child(2)",
+        liker: "td:nth-child(7) button",
+        isFavorited: 'td:nth-child(7) button span[style*="color: gold"]',
         progressBar: 'div[role="progressbar"]',
-        size: 'td div[class="mx-[-5px]"]',
-        seeders: 'td span[aria-label*="arrow-up"] + span',
-        leechers: 'td span[aria-label*="arrow-down"] + span',
+        size: 'td:nth-child(4) div]',
+        seeders: 'td:nth-child(5) span:nth-child(2)',
+        leechers: 'td:nth-child(6) span:nth-child(2)',
         nextPage: 'li[title="下一頁"] button',
       };
     } else if (nexusPHPSites.some((site) => currentURL.includes(site))) {
