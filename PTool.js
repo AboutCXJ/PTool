@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PTool种子下载助手
 // @namespace    https://github.com/AboutCXJ
-// @version      2026-05-3
+// @version      2026-05-3_1
 // @description  PT站点自动批量下载种子
 // @author       AboutCXJ/Yichaocp
 // @updateURL    https://raw.githubusercontent.com/AboutCXJ/PTool/main/PTool.js
@@ -19,7 +19,7 @@
   // prettier-ignore
   const ptoolConfig = {
     //要下载的种子数量
-    totalSeeds: 1000, 
+    totalSeeds: 1000,
     //种子最小大小(MB)
     minSeedSize: 10,
     //种子最大大小(MB)
@@ -42,7 +42,7 @@
     dryRun: false,
     //累计下载多少个种子触发一次多种延时
     seedGap: 128,
-    
+
   };
 
   // 状态统计
@@ -186,6 +186,15 @@
       document.head.appendChild(style);
     }
   }
+
+  //种子状态枚举
+  const TorrentStatus = Object.freeze({
+    NOT_DOWNLOADED: "未下载",
+    DOWNLOADING: "下载中",
+    PAUSED: "暂停中",
+    COMPLETED: "已完成-未做种",
+    SEEDING: "已完成-做种中"
+  });
 
   // 加载页面元素选择器
   function loadSelector(currentURL) {
@@ -530,19 +539,44 @@
       data.liker = element.querySelector(selector.liker);
       data.isFavorited = !!element.querySelector(selector.isFavorited);
 
-      const progressBar = element.querySelector(selector.progressBar);
-      if (progressBar) {
-        data.downloading = progressBar.getAttribute("aria-valuenow") !== "100";
-        data.seeding = progressBar.getAttribute("aria-valuenow") === "100";
-      } else {
-        data.downloading = false;
-        data.seeding = false;
-      }
 
       // prettier-ignore
       data.size = element.querySelector(selector.size)?.innerText.replace(/[\r\n]+/g, "").trim() || "";
       data.seeders = element.querySelector(selector.seeders)?.innerText || "";
       data.leechers = element.querySelector(selector.leechers)?.innerText || "";
+
+      // 默认未下载
+      data.torrentStatus = TorrentStatus.NOT_DOWNLOADED;
+
+      const progressBar = element.querySelector(selector.progressBar);
+
+      if (!progressBar) {
+        datas.push(data);
+        continue;
+      }
+
+      //下载完
+      if (progressBar.classList.contains("ant-progress-status-success")) {
+        //做种
+        data.torrentStatus = TorrentStatus.SEEDING;
+
+        //未做种
+        if(progressBar.querySelector('div[style*="--progress-line-stroke-color: #9e9e9e"]')){
+          data.torrentStatus = TorrentStatus.COMPLETED;
+        }
+      }
+
+      //暂停（下载过,未完成）
+      if (progressBar.classList.contains("ant-progress-status-normal")) {
+        data.torrentStatus = TorrentStatus.PAUSED;
+      }
+
+      //下载中
+      if (progressBar.classList.contains("ant-progress-status-active")) {
+        data.torrentStatus = TorrentStatus.DOWNLOADING;
+      }
+
+      
 
       datas.push(data);
     }
@@ -578,15 +612,15 @@
       }
 
       // 排除正在下载
-      if (data.downloading && ptoolConfig.excludeDownloading) {
+      if (data.torrentStatus === TorrentStatus.DOWNLOADING && ptoolConfig.excludeDownloading) {
         shoudleSkip = true;
-        skipReason.push("正在下载");
+        skipReason.push(TorrentStatus.DOWNLOADING);
       }
 
       // 排除正在做种
-      if (data.seeding && ptoolConfig.excludeSeeding) {
+      if (data.torrentStatus === TorrentStatus.SEEDING && ptoolConfig.excludeSeeding) {
         shoudleSkip = true;
-        skipReason.push("正在做种");
+        skipReason.push(TorrentStatus.SEEDING);
       }
 
       // 排除死种
