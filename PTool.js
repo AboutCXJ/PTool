@@ -1,15 +1,15 @@
 // ==UserScript==
-// @name         PTool
+// @name         PTool种子下载助手
 // @namespace    https://github.com/AboutCXJ
-// @version      2026-05-1
+// @version      2026-05-3
 // @description  PT站点自动批量下载种子
 // @author       AboutCXJ/Yichaocp
 // @updateURL    https://raw.githubusercontent.com/AboutCXJ/PTool/main/PTool.js
 // @downloadURL  https://raw.githubusercontent.com/AboutCXJ/PTool/main/PTool.js
-// @include      https://*
-// @include      http://*
+// @match        *://*/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=tampermonkey.net
 // @grant        GM_notification
+// @run-at       document-start
 // ==/UserScript==
 
 (function () {
@@ -18,18 +18,31 @@
   // 配置参数
   // prettier-ignore
   const ptoolConfig = {
-    totalSeeds: 1000,       //要下载的种子数量
-    minSeedSize: 10,          //种子最小大小(MB)
-    maxSeedSize: 100,          //种子最大大小(MB)
-    pageDelay: 10 * 1000,  //翻页延时(ms)
-    singleSeedDelay: 10 * 1000,   //单种延时(ms)
-    multipleSeedDelay: 40 * 60 * 1000,  //多种延时(ms)
-    excludeDownloading: true,       //排除正在下载中的种子
-    excludeSeeding: true,       //排除正在做种中的种子
-    excludeDeadSeed: true,       //排除死种
-    favoriteMode: false,      //收藏模式
-    dryRun: false,      //模拟运行
-    seedGap: 128,        //累计下载多少个种子触发一次多种延时
+    //要下载的种子数量
+    totalSeeds: 1000, 
+    //种子最小大小(MB)
+    minSeedSize: 10,
+    //种子最大大小(MB)
+    maxSeedSize: 100,
+    //翻页延时(ms)
+    pageDelay: 10 * 1000,
+    //单种延时(ms)
+    singleSeedDelay: 10 * 1000,
+    //多种延时(ms)
+    multipleSeedDelay: 40 * 60 * 1000,
+    //排除正在下载中的种子
+    excludeDownloading: true,
+    //排除正在做种中的种子
+    excludeSeeding: true,
+    //排除死种
+    excludeDeadSeed: true,
+    //收藏模式
+    favoriteMode: false,
+    //模拟运行
+    dryRun: false,
+    //累计下载多少个种子触发一次多种延时
+    seedGap: 128,
+    
   };
 
   // 状态统计
@@ -184,7 +197,7 @@
         liker: "td:nth-child(7) button",
         isFavorited: 'td:nth-child(7) button span[style*="color: gold"]',
         progressBar: 'div[role="progressbar"]',
-        size: 'td:nth-child(4) div]',
+        size: 'td:nth-child(4) div',
         seeders: 'td:nth-child(5) span:nth-child(2)',
         leechers: 'td:nth-child(6) span:nth-child(2)',
         nextPage: 'li[title="下一頁"] button',
